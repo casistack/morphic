@@ -102,6 +102,7 @@ server:
     X-Download-Options: noopen
     X-Robots-Tag: noindex, nofollow
     Referrer-Policy: no-referrer
+    Access-Control-Allow-Origin: "https://hoodmorphic.cybroxnest.com"
 
 redis:
   # URL to connect redis database. Is overwritten by ${SEARXNG_REDIS_URL}.
