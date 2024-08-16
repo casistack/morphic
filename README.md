@@ -31,15 +31,17 @@ An AI-powered search engine with a generative UI.
   - Ollama Provider ([Unstable](https://github.com/miurla/morphic/issues/215))
 - Specify the model to generate answers
   - Groq API support [※](https://github.com/miurla/morphic/pull/58)
+- Local Redis support
+- SearXNG Search API support
 
 ## 🧱 Stack
 
 - App framework: [Next.js](https://nextjs.org/)
 - Text streaming / Generative UI: [Vercel AI SDK](https://sdk.vercel.ai/docs)
 - Generative Model: [OpenAI](https://openai.com/)
-- Search API: [Tavily AI](https://tavily.com/) / [Serper](https://serper.dev)
+- Search API: [Tavily AI](https://tavily.com/) / [Serper](https://serper.dev) / [SearXNG](https://docs.searxng.org/)
 - Reader API: [Jina AI](https://jina.ai/)
-- Serverless Database: [Upstash](https://upstash.com/)
+- Database (Serverless/Local): [Upstash](https://upstash.com/) / [Redis](https://redis.io/)
 - Component library: [shadcn/ui](https://ui.shadcn.com/)
 - Headless component primitives: [Radix UI](https://www.radix-ui.com/)
 - Styling: [Tailwind CSS](https://tailwindcss.com/)
@@ -65,6 +67,8 @@ bun install
 
 Follow the guide below to set up Upstash Redis. Create a database and obtain `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`. Refer to the [Upstash guide](https://upstash.com/blog/rag-chatbot-upstash#setting-up-upstash-redis) for instructions on how to proceed.
 
+If you intend to use a local Redis, you can skip this step.
+
 ### 4. Fill out secrets
 
 ```
@@ -83,17 +87,37 @@ TAVILY_API_KEY=
 # Upstash Redis URL and Token retrieved here: https://console.upstash.com/redis
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
-```
 
-_Note: This project focuses on Generative UI and requires complex output from LLMs. Currently, it's assumed that the official OpenAI models will be used. Although it's possible to set up other models, if you use an OpenAI-compatible model, but we don't guarantee that it'll work._
+## Redis Configuration
+
+This application supports both Upstash Redis and local Redis. To use local Redis:
+
+1. Set `USE_LOCAL_REDIS=true` in your `.env.local` file.
+2. Optionally, set `LOCAL_REDIS_URL` if your local Redis is not running on the default `localhost:6379` or `redis://redis:6379` if you're using docker compose.
+
+To use Upstash Redis:
+
+1. Set `USE_LOCAL_REDIS=false` or leave it unset in your `.env.local` file.
+2. Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` with your Upstash credentials.
+```
 
 ### 5. Run app locally
 
-```
-bun dev
-```
+#### Using Bun
 
-You can now visit http://localhost:3000.
+To run the application locally using Bun, execute the following command:
+
+`bun dev`
+
+You can now visit http://localhost:3000 in your web browser.
+
+#### Using Docker
+
+To run the application using Docker, use the following command:
+
+`docker compose up -d`
+
+This will start the application in detached mode. You can access it at http://localhost:3000.
 
 ## 🌐 Deploy
 
@@ -133,6 +157,52 @@ If you want to use Morphic as a search engine in your browser, follow these step
 7. Find "Morphic" in the list of site search, click on the three dots next to it, and select "Make default".
 
 This will allow you to use Morphic as your default search engine in the browser.
+
+### Using SearXNG as an Alternative Search Backend
+
+Morphic now supports SearXNG as an alternative search backend. To use SearXNG:
+
+1. Ensure you have Docker and Docker Compose installed on your system.
+2. In your `.env.local` file, set the following variables:
+
+   - SEARXNG_API_URL=http://localhost:8080 # Replace with your local SearXNG API URL or docker http://searxng:8080
+   - SEARXNG_SECRET=your_secret_key_here
+   - SEARXNG_PORT=8080
+   - SEARXNG_IMAGE_PROXY=true
+   - SEARCH_API=searxng
+   - SEARXNG_LIMITER=false # can be enabled to limit the number of requests per IP
+
+3. Two configuration files are provided in the root directory:
+
+- `searxng-settings.yml`: This file contains the main configuration for SearXNG, including engine settings and server options.
+- `searxng-limiter.toml`: This file configures the rate limiting and bot detection features of SearXNG.
+
+4. Run `docker-compose up` to start the Morphic stack with SearXNG included.
+5. SearXNG will be available at `http://localhost:8080` and Morphic will use it as the search backend.
+
+#### Customizing SearXNG
+
+- You can modify `searxng-settings.yml` to enable/disable specific search engines, change UI settings, or adjust server options.
+- The `searxng-limiter.toml` file allows you to configure rate limiting and bot detection. This is useful if you're exposing SearXNG directly to the internet.
+- If you prefer not to use external configuration files, you can set these options using environment variables in the `docker-compose.yml` file or directly in the SearXNG container.
+
+#### Advanced Configuration
+
+- To disable the limiter entirely, set `LIMITER=false` in the SearXNG service environment variables.
+- For production use, consider adjusting the `SEARXNG_SECRET_KEY` to a secure, randomly generated value.
+- The `SEARXNG_IMAGE_PROXY` option allows SearXNG to proxy image results, enhancing privacy. Set to `true` to enable this feature.
+
+#### Troubleshooting
+
+- If you encounter issues with specific search engines (e.g., Wikidata), you can disable them in `searxng-settings.yml`:
+
+```yaml
+engines:
+  - name: wikidata
+    disabled: true
+```
+
+- refer to https://docs.searxng.org/admin/settings/settings.html#settings-yml
 
 ## ✅ Verified models
 
