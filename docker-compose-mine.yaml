@@ -59,8 +59,8 @@ services:
       - SEARXNG_IMAGE_PROXY=${SEARXNG_IMAGE_PROXY:-true}
       - SEARXNG_LIMITER=${SEARXNG_LIMITER:-false}
     volumes:
-      - ./searxng-limiter.toml:/etc/searxng/limiter.toml
-      - ./searxng-settings.yml:/etc/searxng/settings.yml
+      - ./searxng-limiter.toml:/etc/searxng
+      - ./searxng-settings.yml:/etc/searxng
       - searchxng_data:/data
 
 volumes:
