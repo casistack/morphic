@@ -60,7 +60,7 @@ services:
       - SEARXNG_LIMITER=${SEARXNG_LIMITER:-false}
     volumes:
       - ./searxng-limiter.toml:/etc/searxng
-      - ./searxng-settings.yml:/etc/searxng
+      - ./searxng-settings-mine.yml:/etc/searxng
       - searchxng_data:/data
 
 volumes:
