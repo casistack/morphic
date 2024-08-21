@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import http from 'http'
 import https from 'https'
-import { parse } from 'node-html-parser'
+import { load } from 'cheerio'
 import {
   SearchResults,
   SearXNGResponse,
@@ -44,7 +44,10 @@ async function advancedSearchXNGSearch(
     throw new Error('SEARXNG_API_URL is not set in the environment variables')
   }
 
-  const maxAllowedResults = parseInt(process.env.SEARXNG_MAX_RESULTS || '50', 10)
+  const maxAllowedResults = parseInt(
+    process.env.SEARXNG_MAX_RESULTS || '50',
+    10
+  )
   maxResults = Math.min(maxResults, maxAllowedResults)
 
   try {
@@ -104,7 +107,7 @@ async function advancedSearchXNGSearch(
       results: generalResults.map(
         (result: SearXNGResult): SearchResultItem => ({
           title: result.title,
-          url: result.url,
+          url: sanitizeUrl(result.url),
           content: result.content
         })
       ),
@@ -112,7 +115,9 @@ async function advancedSearchXNGSearch(
       images: imageResults
         .map((result: SearXNGResult) => {
           const imgSrc = result.img_src || ''
-          return imgSrc.startsWith('http') ? imgSrc : `${apiUrl}${imgSrc}`
+          return imgSrc.startsWith('http')
+            ? sanitizeUrl(imgSrc)
+            : sanitizeUrl(`${apiUrl}${imgSrc}`)
         })
         .filter(Boolean),
       number_of_results: data.number_of_results
@@ -123,20 +128,17 @@ async function advancedSearchXNGSearch(
   }
 }
 
-async function crawlPage(result: SearXNGResult): Promise<SearXNGResult | null> {
+async function crawlPage(result: SearXNGResult): Promise<SearXNGResult> {
   try {
     const html = await fetchHtmlWithTimeout(result.url, 10000) // 10 second timeout
-    const root = parse(html)
-    const body = root.querySelector('body')
-    if (body) {
-      const text = body.textContent.replace(/\s+/g, ' ').trim()
-      const extractedText = text.substring(0, 2000)
-      result.content = `${result.content}\n\nAdditional content:\n${extractedText}`
-    }
+    const $ = load(html)
+    const bodyText = $('body').text().replace(/\s+/g, ' ').trim()
+    const extractedText = bodyText.substring(0, 2000)
+    result.content = `${result.content}\n\nAdditional content:\n${extractedText}`
     return result
   } catch (error) {
     console.error(`Error crawling ${result.url}:`, error)
-    return null
+    return result // Return the original result if crawling fails
   }
 }
 
@@ -194,25 +196,43 @@ function fetchHtml(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const protocol = url.startsWith('https:') ? https : http
     const agent = url.startsWith('https:') ? httpsAgent : httpAgent
-    const request = protocol.get(url, { agent }, res => {
-      if (
-        res.statusCode &&
-        res.statusCode >= 300 &&
-        res.statusCode < 400 &&
-        res.headers.location
-      ) {
-        // Handle redirects
-        fetchHtml(new URL(res.headers.location, url).toString())
-          .then(resolve)
-          .catch(reject)
-        return
+    const request = protocol.get(
+      url,
+      {
+        agent,
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+      },
+      res => {
+        if (
+          res.statusCode &&
+          res.statusCode >= 300 &&
+          res.statusCode < 400 &&
+          res.headers.location
+        ) {
+          // Handle redirects
+          fetchHtml(new URL(res.headers.location, url).toString())
+            .then(resolve)
+            .catch(reject)
+          return
+        }
+
+        // Check for non-HTML content types
+        const contentType = res.headers['content-type']
+        if (contentType && !contentType.includes('text/html')) {
+          reject(new Error(`Non-HTML content type: ${contentType}`))
+          return
+        }
+
+        let data = ''
+        res.on('data', chunk => {
+          data += chunk
+        })
+        res.on('end', () => resolve(data))
       }
-      let data = ''
-      res.on('data', chunk => {
-        data += chunk
-      })
-      res.on('end', () => resolve(data))
-    })
+    )
     request.on('error', reject)
     request.on('timeout', () => {
       request.destroy()
@@ -228,4 +248,14 @@ function timeout(ms: number, message: string): Promise<never> {
       reject(new Error(message))
     }, ms)
   })
+}
+
+// Add this new utility function
+function sanitizeUrl(url: string): string {
+  try {
+    return new URL(url).toString()
+  } catch (error) {
+    console.error(`Invalid URL: ${url}`, error)
+    return ''
+  }
 }
