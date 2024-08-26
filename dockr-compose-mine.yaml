@@ -43,6 +43,24 @@ services:
       - USE_LOCAL_REDIS=${USE_LOCAL_REDIS:-false}
       - LOCAL_REDIS_URL=${LOCAL_REDIS_URL:-redis://redis:6379}
     restart: unless-stopped
+  redis:
+    image: redis:alpine
+    ports:
+      - ':6379'
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    
+  searxng:
+    image: searxng/searxng
+    ports:
+      - ':8080'
+    volumes:
+      - ./searxng-limiter.toml:/etc/searxng/limiter.toml
+      - ./searxng-settings.yml:/etc/searxng/settings.yml
+      - searxng_data:/data
+    
 
 volumes:
   morphic-data:
+  searxng_data:
