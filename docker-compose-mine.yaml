@@ -40,6 +40,7 @@ services:
       - SEARXNG_ENGINES=${SEARXNG_ENGINES:-google,bing,duckduckgo,wikipedia}
       - SEARXNG_TIME_RANGE=${SEARXNG_TIME_RANGE:-None}
       - SEARXNG_SAFESEARCH=${SEARXNG_SAFESEARCH:-0}
+      - SEARXNG_DEFAULT_DEPTH=${SEARXNG_DEFAULT_DEPTH:-advanced}
       - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL:-http://localhost:3000}
     restart: unless-stopped
     depends_on:
@@ -66,9 +67,10 @@ services:
       - SEARXNG_URL=${SEARXNG_URL:-http://searxng:8080}
       - SEARXNG_PUBLIC_INSTANCE=${SEARXNG_PUBLIC_INSTANCE:-false}
       - SEARXNG_SAFESEARCH=${SEARXNG_SAFESEARCH:-0}
+      - SEARXNG_PORT=${SEARXNG_PORT:-8080}
     volumes:
       - ./searxng-limiter.toml:/etc/searxng
-      - ./searxng-settings-mine.yml:/etc/searxng
+      - ./searxng-settings.yml:/etc/searxng
       - searxng_data:/data
 
 volumes:
