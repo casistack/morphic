@@ -56,9 +56,6 @@ services:
     ports:
       - ':8080'
     volumes:
-      - 
-      - ${PWD}/searxng-limiter.toml:/etc/searxng/limiter.toml
-      - ${PWD}/searxng-settings-mine.yml:/etc/searxng/settings.yml
       - searxng_data:/data
     
 
