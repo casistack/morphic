@@ -70,7 +70,7 @@ services:
       - SEARXNG_PORT=${SEARXNG_PORT:-8080}
     volumes:
       - ${PWD}/searxng-limiter.toml:/etc/searxng/limiter.toml
-      - ${PWD}/searxng-settings.yml:/etc/searxng/settings.yml
+      - ${PWD}/searxng-settings-mine.yml:/etc/searxng/settings.yml
       - searxng_data:/data
 
 volumes:
