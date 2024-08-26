@@ -56,9 +56,11 @@ services:
     command: redis-server --appendonly yes
 
   searxng:
-    image: searxng/searxng
+    build:
+       context: .
+       dockerfile: Dockerfile.searxng
     ports:
-      - "8686:8080"
+      - ":8080"
     environment:
       - SEARXNG_SECRET=${SEARXNG_SECRET}
       - SEARXNG_BIND_ADDRESS=${SEARXNG_BIND_ADDRESS:-0.0.0.0}
