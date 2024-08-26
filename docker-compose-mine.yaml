@@ -29,8 +29,8 @@ services:
       - SERPER_API_KEY=${SERPER_API_KEY}
       - USE_LOCAL_REDIS=${USE_LOCAL_REDIS:-true}
       - LOCAL_REDIS_URL=${LOCAL_REDIS_URL:-redis://redis:6379}
-      - SEARXNG_API_URL=${SEARXNG_API_URL:-http://searchxng:8080}
-      - SEARCH_API=${SEARCH_API:-searchxng}
+      - SEARXNG_API_URL=${SEARXNG_API_URL:-http://searxng:8080}
+      - SEARCH_API=${SEARCH_API:-searxng}
       - SEARXNG_IMAGE_PROXY=${SEARXNG_IMAGE_PROXY:-true}
       - SEARXNG_SECRET=${SEARXNG_SECRET}
       - SEARXNG_LIMITER=${SEARXNG_LIMITER:-false}
@@ -44,7 +44,7 @@ services:
     restart: unless-stopped
     depends_on:
       - redis
-      - searchxng
+      - searxng
 
   redis:
     image: redis:alpine
@@ -54,7 +54,7 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes
 
-  searchxng:
+  searxng:
     image: searxng/searxng
     ports:
       - ":8080"
@@ -63,15 +63,15 @@ services:
       - SEARXNG_BIND_ADDRESS=${SEARXNG_BIND_ADDRESS:-0.0.0.0}
       - SEARXNG_IMAGE_PROXY=${SEARXNG_IMAGE_PROXY:-true}
       - SEARXNG_LIMITER=${SEARXNG_LIMITER:-false}
-      - SEARXNG_URL=${SEARXNG_URL:-http://searchxng:8080}
+      - SEARXNG_URL=${SEARXNG_URL:-http://searxng:8080}
       - SEARXNG_PUBLIC_INSTANCE=${SEARXNG_PUBLIC_INSTANCE:-false}
       - SEARXNG_SAFESEARCH=${SEARXNG_SAFESEARCH:-0}
     volumes:
       - ./searxng-limiter.toml:/etc/searxng
       - ./searxng-settings-mine.yml:/etc/searxng
-      - searchxng_data:/data
+      - searxng_data:/data
 
 volumes:
   morphic-data:
   redis_data:
-  searchxng_data:
+  searxng_data:
