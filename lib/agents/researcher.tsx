@@ -12,6 +12,7 @@ export async function researcher(
   let fullResponse = ''
   let hasError = false
   let finishReason = ''
+  let isStreamClosed = false
 
   // Transform the messages if using Ollama provider
   let processedMessages = messages
@@ -29,6 +30,19 @@ export async function researcher(
   const answerSection = <AnswerSection result={streamableAnswer.value} />
 
   const currentDate = new Date().toLocaleString()
+
+  const safeUpdate = (
+    streamable: ReturnType<typeof createStreamableValue<string>>,
+    value: string
+  ) => {
+    if (!isStreamClosed) {
+      try {
+        streamable.update(value)
+      } catch (error) {
+        console.error('Error updating streamable:', error)
+      }
+    }
+  }
 
   try {
     const result = await streamText({
@@ -53,14 +67,11 @@ export async function researcher(
       onFinish: async event => {
         finishReason = event.finishReason
         fullResponse = event.text
-        streamableAnswer.update(fullResponse)
-        streamableAnswer.done()
-        streamableText.update(fullResponse)
-        streamableText.done()
+        safeUpdate(streamableAnswer, fullResponse)
+        safeUpdate(streamableText, fullResponse)
       }
     })
-    
-    // If the result is not available, return an error response
+
     if (!result) {
       throw new Error('No result from streamText')
     }
@@ -70,7 +81,6 @@ export async function researcher(
       uiStream.append(answerSection)
     }
 
-    // Process the response
     const toolCalls: ToolCallPart[] = []
     const toolResponses: ToolResultPart[] = []
     for await (const delta of result.fullStream) {
@@ -79,9 +89,9 @@ export async function researcher(
           if (delta.textDelta) {
             fullResponse += delta.textDelta
             if (useAnthropicProvider && !hasToolResult) {
-              streamableText.update(fullResponse)
+              safeUpdate(streamableText, fullResponse)
             } else {
-              streamableAnswer.update(fullResponse)
+              safeUpdate(streamableAnswer, fullResponse)
             }
           }
           break
@@ -98,8 +108,8 @@ export async function researcher(
           console.log('Error: ' + delta.error)
           hasError = true
           fullResponse += `\nError occurred while executing the tool`
-          streamableText.update(fullResponse)
-          streamableAnswer.update(fullResponse)
+          safeUpdate(streamableText, fullResponse)
+          safeUpdate(streamableAnswer, fullResponse)
           break
       }
     }
@@ -110,25 +120,25 @@ export async function researcher(
     })
 
     if (toolResponses.length > 0) {
-      // Add tool responses to the messages
       messages.push({ role: 'tool', content: toolResponses })
     }
-
-    return { result, fullResponse, hasError, toolResponses, finishReason }
   } catch (err) {
     hasError = true
     fullResponse =
       'Error: ' + (err instanceof Error ? err.message : String(err))
-    streamableText.update(fullResponse)
-    streamableAnswer.update(fullResponse)
-    streamableText.done()
+    safeUpdate(streamableText, fullResponse)
+    safeUpdate(streamableAnswer, fullResponse)
+  } finally {
+    isStreamClosed = true
     streamableAnswer.done()
-    return {
-      result: null,
-      fullResponse,
-      hasError,
-      toolResponses: [],
-      finishReason: 'error'
-    }
+    streamableText.done()
+  }
+
+  return {
+    result: null,
+    fullResponse,
+    hasError,
+    toolResponses: [],
+    finishReason
   }
 }
