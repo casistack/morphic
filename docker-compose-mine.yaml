@@ -57,7 +57,7 @@ services:
   searxng:
     image: searxng/searxng
     ports:
-      - ":8080"
+      - "8686:8080"
     environment:
       - SEARXNG_SECRET=${SEARXNG_SECRET}
       - SEARXNG_BIND_ADDRESS=${SEARXNG_BIND_ADDRESS:-0.0.0.0}
