@@ -31,6 +31,16 @@ services:
       - LOCAL_REDIS_URL=${LOCAL_REDIS_URL:-redis://redis:6379}
       - SEARXNG_API_URL=${SEARXNG_API_URL:-http://searchxng:8080}
       - SEARCH_API=${SEARCH_API:-searchxng}
+      - SEARXNG_IMAGE_PROXY=${SEARXNG_IMAGE_PROXY:-true}
+      - SEARXNG_SECRET=${SEARXNG_SECRET}
+      - SEARXNG_LIMITER=${SEARXNG_LIMITER:-false}
+      - SEARXNG_DEFAULT_DEPTH=${SEARXNG_DEFAULT_DEPTH:-100}
+      - SEARXNG_MAX_RESULTS=${SEARXNG_MAX_RESULTS:-100}
+      - SEARXNG_CRAWL_MULTIPLIER=${SEARXNG_CRAWL_MULTIPLIER:-4}
+      - SEARXNG_ENGINES=${SEARXNG_ENGINES:-google,bing,duckduckgo,wikipedia}
+      - SEARXNG_TIME_RANGE=${SEARXNG_TIME_RANGE:-None}
+      - SEARXNG_SAFESEARCH=${SEARXNG_SAFESEARCH:-0}
+      - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL:-http://localhost:3000}
     restart: unless-stopped
     depends_on:
       - redis
@@ -55,6 +65,7 @@ services:
       - SEARXNG_LIMITER=${SEARXNG_LIMITER:-false}
       - SEARXNG_URL=${SEARXNG_URL:-http://searchxng:8080}
       - SEARXNG_PUBLIC_INSTANCE=${SEARXNG_PUBLIC_INSTANCE:-false}
+      - SEARXNG_SAFESEARCH=${SEARXNG_SAFESEARCH:-0}
     volumes:
       - ./searxng-limiter.toml:/etc/searxng
       - ./searxng-settings-mine.yml:/etc/searxng
