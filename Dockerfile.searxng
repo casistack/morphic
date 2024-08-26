@@ -1,0 +1,3 @@
+FROM searxng/searxng
+COPY searxng-settings-mine.yml /etc/searxng/settings.yml
+COPY searxng-limiter.toml /etc/searxng/limiter.toml
