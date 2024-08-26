@@ -4,6 +4,13 @@ import { getTools } from './tools'
 import { getModel, transformToolMessages } from '../utils'
 import { AnswerSection } from '@/components/answer-section'
 
+enum StreamState {
+  INITIAL,
+  ACTIVE,
+  CLOSING,
+  CLOSED
+}
+
 export async function researcher(
   uiStream: ReturnType<typeof createStreamableUI>,
   streamableText: ReturnType<typeof createStreamableValue<string>>,
@@ -12,7 +19,7 @@ export async function researcher(
   let fullResponse = ''
   let hasError = false
   let finishReason = ''
-  let isStreamClosed = false
+  let streamState = StreamState.INITIAL
 
   // Transform the messages if using Ollama provider
   let processedMessages = messages
@@ -35,7 +42,7 @@ export async function researcher(
     streamable: ReturnType<typeof createStreamableValue<string>>,
     value: string
   ) => {
-    if (!isStreamClosed) {
+    if (streamState === StreamState.ACTIVE) {
       try {
         streamable.update(value)
       } catch (error) {
@@ -44,7 +51,24 @@ export async function researcher(
     }
   }
 
+  const safeClose = (
+    streamable: ReturnType<typeof createStreamableValue<string>>
+  ) => {
+    if (streamState === StreamState.ACTIVE) {
+      streamState = StreamState.CLOSING
+      try {
+        streamable.done()
+      } catch (error) {
+        console.error('Error closing streamable:', error)
+      } finally {
+        streamState = StreamState.CLOSED
+      }
+    }
+  }
+
   try {
+    streamState = StreamState.ACTIVE
+
     const result = await streamText({
       model: getModel(useSubModel),
       maxTokens: 2500,
@@ -84,6 +108,8 @@ export async function researcher(
     const toolCalls: ToolCallPart[] = []
     const toolResponses: ToolResultPart[] = []
     for await (const delta of result.fullStream) {
+      if (streamState !== StreamState.ACTIVE) break
+
       switch (delta.type) {
         case 'text-delta':
           if (delta.textDelta) {
@@ -129,9 +155,8 @@ export async function researcher(
     safeUpdate(streamableText, fullResponse)
     safeUpdate(streamableAnswer, fullResponse)
   } finally {
-    isStreamClosed = true
-    streamableAnswer.done()
-    streamableText.done()
+    safeClose(streamableAnswer)
+    safeClose(streamableText)
   }
 
   return {
@@ -142,3 +167,4 @@ export async function researcher(
     finishReason
   }
 }
+
