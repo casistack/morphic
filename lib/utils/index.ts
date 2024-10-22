@@ -2,7 +2,7 @@ import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { createOllama } from 'ollama-ai-provider'
 import { createOpenAI } from '@ai-sdk/openai'
-import { createAzure } from '@ai-sdk/azure';
+import { createAzure } from '@ai-sdk/azure'
 import { google } from '@ai-sdk/google'
 import { anthropic } from '@ai-sdk/anthropic'
 import { CoreMessage } from 'ai'
@@ -23,12 +23,15 @@ export function getModel(useSubModel = false) {
   let azureDeploymentName = process.env.AZURE_DEPLOYMENT_NAME || 'gpt-4o'
   const googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY
+  const groqApiKey = process.env.GROQ_API_KEY
+  const groqApiModel = process.env.GROQ_API_MODEL
 
   if (
     !(ollamaBaseUrl && ollamaModel) &&
     !openaiApiKey &&
     !googleApiKey &&
-    !anthropicApiKey
+    !anthropicApiKey &&
+    !(azureApiKey && azureResourceName)
   ) {
     throw new Error(
       'Missing environment variables for Ollama, OpenAI, Azure OpenAI, Google or Anthropic'
@@ -46,7 +49,7 @@ export function getModel(useSubModel = false) {
   }
 
   if (googleApiKey) {
-    return google('models/gemini-1.5-pro-latest')
+    return google('gemini-1.5-pro-002')
   }
 
   if (anthropicApiKey) {
@@ -60,6 +63,15 @@ export function getModel(useSubModel = false) {
     })
 
     return azure.chat(azureDeploymentName)
+  }
+
+  if (groqApiKey && groqApiModel) {
+    const groq = createOpenAI({
+      apiKey: groqApiKey,
+      baseURL: 'https://api.groq.com/openai/v1'
+    })
+
+    return groq.chat(groqApiModel)
   }
 
   // Fallback to OpenAI instead
