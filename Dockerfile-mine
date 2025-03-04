@@ -4,7 +4,8 @@ WORKDIR /app
 
 # Set environment variables for Next.js build
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NEXT_PUBLIC_BASE_URL=http://localhost:3000
+# Use relative URL instead of absolute to avoid issues with different domains
+ENV NEXT_PUBLIC_BASE_URL=""
 # Force Next.js to use dynamic rendering instead of static generation
 ENV NEXT_RUNTIME_ENV=development
 
@@ -29,6 +30,8 @@ WORKDIR /app
 # Set runtime environment variables
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# Use relative URL instead of absolute URL to avoid domain/protocol issues
+ENV NEXT_PUBLIC_BASE_URL=""
 
 # Copy only necessary files from builder
 COPY --from=builder /app/.next ./.next

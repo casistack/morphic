@@ -9,20 +9,50 @@ export function validateModel(model: any): model is Model {
     typeof model.providerId === 'string' &&
     typeof model.enabled === 'boolean' &&
     (model.toolCallType === 'native' || model.toolCallType === 'manual') &&
-    (model.toolCallModel === undefined || typeof model.toolCallModel === 'string')
+    (model.toolCallModel === undefined ||
+      typeof model.toolCallModel === 'string')
   )
 }
 
 export async function getModels(): Promise<Model[]> {
   try {
-    const headersList = await headers()
-    const baseUrl = new URL(headersList.get('x-url') || 'http://localhost:3000')
-    const modelUrl = new URL('/config/models.json', baseUrl.origin)
+    // Try multiple approaches to get a working base URL
+    let baseUrl: URL
+
+    try {
+      // First try using headers to get the current request's URL
+      const headersList = await headers()
+      baseUrl = new URL(headersList.get('x-url') || '')
+    } catch (error) {
+      // If that fails, use environment variable or default
+      const envBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || ''
+
+      if (envBaseUrl) {
+        baseUrl = new URL(envBaseUrl)
+      } else {
+        // Last resort - use relative path which should work in most cases
+        baseUrl = new URL('/', 'http://localhost')
+      }
+    }
+
+    // Use relative URL to avoid cross-origin issues
+    const modelUrl = new URL('/config/models.json', baseUrl)
+
+    // Log the URL being used (helpful for debugging)
+    console.log(`Fetching models from: ${modelUrl.toString()}`)
 
     const response = await fetch(modelUrl, {
       cache: 'no-store'
     })
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch models: ${response.status} ${response.statusText}`
+      )
+    }
+
     const config = await response.json()
+
     if (Array.isArray(config.models) && config.models.every(validateModel)) {
       return config.models
     }
@@ -30,6 +60,6 @@ export async function getModels(): Promise<Model[]> {
   } catch (error) {
     console.warn('Failed to load models:', error)
   }
-  
+
   return []
 }
