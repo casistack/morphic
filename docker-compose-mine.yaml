@@ -5,10 +5,10 @@ services:
   morphic:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile-mine
     command: bun start -H 0.0.0.0
     ports:
-      - ":3000"
+      - ':3000'
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - TAVILY_API_KEY=${TAVILY_API_KEY}
@@ -43,8 +43,6 @@ services:
       - SEARXNG_DEFAULT_DEPTH=${SEARXNG_DEFAULT_DEPTH:-advanced}
       - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL:-http://localhost:3000}
     restart: unless-stopped
-    volumes:
-      - ./public/config/models.json:/app/public/config/models.json
     depends_on:
       - redis
       - searxng
@@ -52,17 +50,17 @@ services:
   redis:
     image: redis:alpine
     ports:
-      - ":6379"
+      - ':6379'
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
 
   searxng:
     build:
-       context: .
-       dockerfile: Dockerfile.searxng
+      context: .
+      dockerfile: Dockerfile.searxng
     ports:
-      - ":8080"
+      - ':8080'
     environment:
       - SEARXNG_SECRET=${SEARXNG_SECRET}
       - SEARXNG_BIND_ADDRESS=${SEARXNG_BIND_ADDRESS:-0.0.0.0}
