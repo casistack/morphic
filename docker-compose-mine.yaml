@@ -43,6 +43,8 @@ services:
       - SEARXNG_DEFAULT_DEPTH=${SEARXNG_DEFAULT_DEPTH:-advanced}
       - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL:-http://localhost:3000}
     restart: unless-stopped
+    volumes:
+      - ./public/config/models.json:/app/public/config/models.json
     depends_on:
       - redis
       - searxng
