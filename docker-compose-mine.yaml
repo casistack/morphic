@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: bun dev
+    command: bun start -H 0.0.0.0
     ports:
       - ":3000"
     environment:
@@ -73,7 +73,7 @@ services:
     volumes:
       - searxng_data:/data
       - ./searxng-settings-mine.yml:/data/searxng-settings-mine.yml
-      - ./searxng-limiter.toml:/data/earxng-limiter.toml
+      - ./searxng-limiter.toml:/data/searxng-limiter.toml
 
 volumes:
   morphic-data:
