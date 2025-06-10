@@ -7,7 +7,7 @@ import { groq } from '@ai-sdk/groq'
 import { createOpenAI, openai } from '@ai-sdk/openai'
 import { xai } from '@ai-sdk/xai'
 import {
-  experimental_createProviderRegistry as createProviderRegistry,
+  createProviderRegistry,
   extractReasoningMiddleware,
   wrapLanguageModel
 } from 'ai'
@@ -23,7 +23,8 @@ export const registry = createProviderRegistry({
   }),
   azure: createAzure({
     apiKey: process.env.AZURE_API_KEY,
-    resourceName: process.env.AZURE_RESOURCE_NAME
+    resourceName: process.env.AZURE_RESOURCE_NAME,
+    apiVersion: '2025-03-01-preview'
   }),
   deepseek,
   fireworks: {
@@ -83,7 +84,9 @@ export function getModel(model: string) {
     })
   }
 
-  return registry.languageModel(model)
+  return registry.languageModel(
+    model as Parameters<typeof registry.languageModel>[0]
+  )
 }
 
 export function isProviderEnabled(providerId: string): boolean {

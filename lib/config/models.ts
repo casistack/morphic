@@ -1,7 +1,6 @@
 import { Model } from '@/lib/types/models'
-import fs from 'fs/promises'
-import { headers } from 'next/headers'
-import path from 'path'
+import { getBaseUrl } from '@/lib/utils/url'
+import defaultModels from './default-models.json'
 
 export function validateModel(model: any): model is Model {
   return (
@@ -17,86 +16,63 @@ export function validateModel(model: any): model is Model {
 }
 
 export async function getModels(): Promise<Model[]> {
-  // First attempt: Try loading from filesystem
   try {
-    console.log('Attempting to load models from filesystem')
-    const possiblePaths = [
-      // Container path
-      '/app/public/config/models.json',
-      // Current directory path
-      path.join(process.cwd(), 'public', 'config', 'models.json')
-    ]
+    // Get the base URL using the centralized utility function
+    const baseUrlObj = await getBaseUrl()
 
-    // Try each path until we find the file
-    for (const filePath of possiblePaths) {
-      try {
-        console.log(`Trying path: ${filePath}`)
-        const fileContent = await fs.readFile(filePath, 'utf-8')
-        const config = JSON.parse(fileContent)
+    // Construct the models.json URL
+    const modelUrl = new URL('/config/models.json', baseUrlObj)
+    console.log('Attempting to fetch models from:', modelUrl.toString())
 
-        if (
-          Array.isArray(config.models) &&
-          config.models.every(validateModel)
-        ) {
-          console.log(`Successfully loaded models from filesystem: ${filePath}`)
-          return config.models
-        }
-      } catch (err) {
-        // Continue to next path if this one fails
-        console.log(`Failed to load from ${filePath}`)
-      }
-    }
-  } catch (fsError) {
-    console.log('Filesystem loading failed, falling back to URL-based method')
-  }
-
-  // Second attempt: The original URL-based method as fallback
-  try {
-    // Try multiple approaches to get a working base URL
-    let baseUrl: URL
     try {
-      // First try using headers to get the current request's URL
-      const headersList = await headers()
-      baseUrl = new URL(headersList.get('x-url') || '')
+      const response = await fetch(modelUrl, {
+        cache: 'no-store',
+        headers: {
+          Accept: 'application/json'
+        }
+      })
 
-      // Force HTTP protocol for internal requests to avoid HTTPS issues
-      if (baseUrl.hostname === '0.0.0.0') {
-        baseUrl.protocol = 'http:'
-        baseUrl.hostname = 'localhost'
+      if (!response.ok) {
+        console.warn(
+          `HTTP error when fetching models: ${response.status} ${response.statusText}`
+        )
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
-    } catch (error) {
-      // If that fails, use environment variable or default
-      const envBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || ''
-      if (envBaseUrl) {
-        baseUrl = new URL(envBaseUrl)
-      } else {
-        // Last resort - use relative path which should work in most cases
-        baseUrl = new URL('/', 'http://localhost')
+
+      const text = await response.text()
+
+      // Check if the response starts with HTML doctype
+      if (text.trim().toLowerCase().startsWith('<!doctype')) {
+        console.warn('Received HTML instead of JSON when fetching models')
+        throw new Error('Received HTML instead of JSON')
       }
-    }
 
-    // Use relative URL to avoid cross-origin issues
-    const modelUrl = new URL('/config/models.json', baseUrl)
-    console.log(`Fetching models from URL: ${modelUrl.toString()}`)
-
-    const response = await fetch(modelUrl, {
-      cache: 'no-store'
-    })
-
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch models: ${response.status} ${response.statusText}`
+      const config = JSON.parse(text)
+      if (Array.isArray(config.models) && config.models.every(validateModel)) {
+        console.log('Successfully loaded models from URL')
+        return config.models
+      }
+    } catch (error: any) {
+      // Fallback to default models if fetch fails
+      console.warn(
+        'Fetch failed, falling back to default models:',
+        error.message || 'Unknown error'
       )
-    }
 
-    const config = await response.json()
-    if (Array.isArray(config.models) && config.models.every(validateModel)) {
-      return config.models
+      if (
+        Array.isArray(defaultModels.models) &&
+        defaultModels.models.every(validateModel)
+      ) {
+        console.log('Successfully loaded default models')
+        return defaultModels.models
+      }
     }
-    console.warn('Invalid model configuration')
   } catch (error) {
     console.warn('Failed to load models:', error)
   }
 
+  // Last resort: return empty array
+  console.warn('All attempts to load models failed, returning empty array')
   return []
 }
+

@@ -1,6 +1,6 @@
 'use client'
 
-import { Text } from 'lucide-react'
+import { ChatRequestOptions } from 'ai'
 import { CollapsibleMessage } from './collapsible-message'
 import { DefaultSkeleton } from './default-skeleton'
 import { BotMessage } from './message'
@@ -11,30 +11,44 @@ export type AnswerSectionProps = {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
   chatId?: string
+  showActions?: boolean
+  messageId: string
+  reload?: (
+    messageId: string,
+    options?: ChatRequestOptions
+  ) => Promise<string | null | undefined>
 }
 
 export function AnswerSection({
   content,
   isOpen,
   onOpenChange,
-  chatId
+  chatId,
+  showActions = true, // Default to true for backward compatibility
+  messageId,
+  reload
 }: AnswerSectionProps) {
   const enableShare = process.env.NEXT_PUBLIC_ENABLE_SHARE === 'true'
 
-  const header = (
-    <div className="flex items-center gap-1">
-      <Text size={16} />
-      <div>Answer</div>
-    </div>
-  )
+  const handleReload = () => {
+    if (reload) {
+      return reload(messageId)
+    }
+    return Promise.resolve(undefined)
+  }
+
   const message = content ? (
     <div className="flex flex-col gap-1">
       <BotMessage message={content} />
-      <MessageActions
-        message={content}
-        chatId={chatId}
-        enableShare={enableShare}
-      />
+      {showActions && (
+        <MessageActions
+          message={content} // Keep original message content for copy
+          messageId={messageId}
+          chatId={chatId}
+          enableShare={enableShare}
+          reload={handleReload}
+        />
+      )}
     </div>
   ) : (
     <DefaultSkeleton />
@@ -43,10 +57,10 @@ export function AnswerSection({
     <CollapsibleMessage
       role="assistant"
       isCollapsible={false}
-      header={header}
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       showBorder={false}
+      showIcon={false}
     >
       {message}
     </CollapsibleMessage>

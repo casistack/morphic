@@ -1,7 +1,7 @@
-import { JSONValue, Message, ToolInvocation } from 'ai'
+import { ChatRequestOptions, JSONValue, Message, ToolInvocation } from 'ai'
 import { useMemo } from 'react'
 import { AnswerSection } from './answer-section'
-import { ReasoningAnswerSection } from './reasoning-answer-section'
+import { ReasoningSection } from './reasoning-section'
 import RelatedQuestions from './related-questions'
 import { ToolSection } from './tool-section'
 import { UserMessage } from './user-message'
@@ -13,6 +13,12 @@ interface RenderMessageProps {
   onOpenChange: (id: string, open: boolean) => void
   onQuerySelect: (query: string) => void
   chatId?: string
+  addToolResult?: (params: { toolCallId: string; result: any }) => void
+  onUpdateMessage?: (messageId: string, newContent: string) => Promise<void>
+  reload?: (
+    messageId: string,
+    options?: ChatRequestOptions
+  ) => Promise<string | null | undefined>
 }
 
 export function RenderMessage({
@@ -21,7 +27,10 @@ export function RenderMessage({
   getIsOpen,
   onOpenChange,
   onQuerySelect,
-  chatId
+  chatId,
+  addToolResult,
+  onUpdateMessage,
+  reload
 }: RenderMessageProps) {
   const relatedQuestions = useMemo(
     () =>
@@ -88,36 +97,17 @@ export function RenderMessage({
     return 0
   }, [reasoningAnnotation])
 
-  const reasoningResult = useMemo(() => {
-    if (!reasoningAnnotation) return message.reasoning
-    if (
-      typeof reasoningAnnotation.data === 'object' &&
-      reasoningAnnotation.data !== null
-    ) {
-      return reasoningAnnotation.data.reasoning ?? message.reasoning
-    }
-    return message.reasoning
-  }, [reasoningAnnotation, message.reasoning])
-
   if (message.role === 'user') {
-    return <UserMessage message={message.content} />
-  }
-
-  if (message.toolInvocations?.length) {
     return (
-      <>
-        {message.toolInvocations.map(tool => (
-          <ToolSection
-            key={tool.toolCallId}
-            tool={tool}
-            isOpen={getIsOpen(messageId)}
-            onOpenChange={open => onOpenChange(messageId, open)}
-          />
-        ))}
-      </>
+      <UserMessage
+        message={message.content}
+        messageId={messageId}
+        onUpdateMessage={onUpdateMessage}
+      />
     )
   }
 
+  // New way: Use parts instead of toolInvocations
   return (
     <>
       {toolData.map(tool => (
@@ -126,37 +116,65 @@ export function RenderMessage({
           tool={tool}
           isOpen={getIsOpen(tool.toolCallId)}
           onOpenChange={open => onOpenChange(tool.toolCallId, open)}
+          addToolResult={addToolResult}
         />
       ))}
-      {reasoningResult ? (
-        <ReasoningAnswerSection
-          content={{
-            reasoning: reasoningResult,
-            answer: message.content,
-            time: reasoningTime
-          }}
-          isOpen={getIsOpen(messageId)}
-          onOpenChange={open => onOpenChange(messageId, open)}
-          chatId={chatId}
-        />
-      ) : (
-        <AnswerSection
-          content={message.content}
-          isOpen={getIsOpen(messageId)}
-          onOpenChange={open => onOpenChange(messageId, open)}
-          chatId={chatId}
+      {message.parts?.map((part, index) => {
+        // Check if this is the last part in the array
+        const isLastPart = index === (message.parts?.length ?? 0) - 1
+
+        switch (part.type) {
+          case 'tool-invocation':
+            return (
+              <ToolSection
+                key={`${messageId}-tool-${index}`}
+                tool={part.toolInvocation}
+                isOpen={getIsOpen(part.toolInvocation.toolCallId)}
+                onOpenChange={open =>
+                  onOpenChange(part.toolInvocation.toolCallId, open)
+                }
+                addToolResult={addToolResult}
+              />
+            )
+          case 'text':
+            // Only show actions if this is the last part and it's a text part
+            return (
+              <AnswerSection
+                key={`${messageId}-text-${index}`}
+                content={part.text}
+                isOpen={getIsOpen(messageId)}
+                onOpenChange={open => onOpenChange(messageId, open)}
+                chatId={chatId}
+                showActions={isLastPart}
+                messageId={messageId}
+                reload={reload}
+              />
+            )
+          case 'reasoning':
+            return (
+              <ReasoningSection
+                key={`${messageId}-reasoning-${index}`}
+                content={{
+                  reasoning: part.reasoning,
+                  time: reasoningTime
+                }}
+                isOpen={getIsOpen(messageId)}
+                onOpenChange={open => onOpenChange(messageId, open)}
+              />
+            )
+          // Add other part types as needed
+          default:
+            return null
+        }
+      })}
+      {relatedQuestions && relatedQuestions.length > 0 && (
+        <RelatedQuestions
+          annotations={relatedQuestions as JSONValue[]}
+          onQuerySelect={onQuerySelect}
+          isOpen={getIsOpen(`${messageId}-related`)}
+          onOpenChange={open => onOpenChange(`${messageId}-related`, open)}
         />
       )}
-      {!message.toolInvocations &&
-        relatedQuestions &&
-        relatedQuestions.length > 0 && (
-          <RelatedQuestions
-            annotations={relatedQuestions as JSONValue[]}
-            onQuerySelect={onQuerySelect}
-            isOpen={getIsOpen(`${messageId}-related`)}
-            onOpenChange={open => onOpenChange(`${messageId}-related`, open)}
-          />
-        )}
     </>
   )
 }

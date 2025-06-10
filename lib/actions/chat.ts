@@ -1,9 +1,9 @@
 'use server'
 
+import { getRedisClient, RedisWrapper } from '@/lib/redis/config'
+import { type Chat } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { type Chat } from '@/lib/types'
-import { getRedisClient, RedisWrapper } from '@/lib/redis/config'
 
 async function getRedis(): Promise<RedisWrapper> {
   return await getRedisClient()
@@ -62,6 +62,62 @@ export async function getChats(userId?: string | null) {
   }
 }
 
+export async function getChatsPage(
+  userId: string,
+  limit = 20,
+  offset = 0
+): Promise<{ chats: Chat[]; nextOffset: number | null }> {
+  try {
+    const redis = await getRedis()
+    const userChatKey = getUserChatKey(userId)
+    const start = offset
+    const end = offset + limit - 1
+
+    const chatKeys = await redis.zrange(userChatKey, start, end, {
+      rev: true
+    })
+
+    if (chatKeys.length === 0) {
+      return { chats: [], nextOffset: null }
+    }
+
+    const results = await Promise.all(
+      chatKeys.map(async chatKey => {
+        const chat = await redis.hgetall(chatKey)
+        return chat
+      })
+    )
+
+    const chats = results
+      .filter((result): result is Record<string, any> => {
+        if (result === null || Object.keys(result).length === 0) {
+          return false
+        }
+        return true
+      })
+      .map(chat => {
+        const plainChat = { ...chat }
+        if (typeof plainChat.messages === 'string') {
+          try {
+            plainChat.messages = JSON.parse(plainChat.messages)
+          } catch (error) {
+            plainChat.messages = []
+          }
+        }
+        if (plainChat.createdAt && !(plainChat.createdAt instanceof Date)) {
+          plainChat.createdAt = new Date(plainChat.createdAt)
+        }
+        return plainChat as Chat
+      })
+
+    const nextOffset = chatKeys.length === limit ? offset + limit : null
+    return { chats, nextOffset }
+  } catch (error) {
+    console.error('Error fetching chat page:', error)
+    return { chats: [], nextOffset: null }
+  }
+}
+
 export async function getChat(id: string, userId: string = 'anonymous') {
   const redis = await getRedis()
   const chat = await redis.hgetall<Chat>(`chat:${id}`)
@@ -107,6 +163,42 @@ export async function clearChats(
 
   revalidatePath('/')
   redirect('/')
+}
+
+export async function deleteChat(
+  chatId: string,
+  userId = 'anonymous'
+): Promise<{ error?: string }> {
+  try {
+    const redis = await getRedis()
+    const userKey = getUserChatKey(userId)
+    const chatKey = `chat:${chatId}`
+
+    const chatDetails = await redis.hgetall<Chat>(chatKey)
+    if (!chatDetails || Object.keys(chatDetails).length === 0) {
+      console.warn(`Attempted to delete non-existent chat: ${chatId}`)
+      return { error: 'Chat not found' }
+    }
+
+    // Optional: Check if the chat actually belongs to the user if userId is provided and matters
+    // if (chatDetails.userId !== userId) {
+    //  console.warn(`Unauthorized attempt to delete chat ${chatId} by user ${userId}`)
+    //  return { error: 'Unauthorized' }
+    // }
+
+    const pipeline = redis.pipeline()
+    pipeline.del(chatKey)
+    pipeline.zrem(userKey, chatKey) // Use chatKey consistently
+    await pipeline.exec()
+
+    // Revalidate the root path where the chat history is displayed
+    revalidatePath('/')
+
+    return {}
+  } catch (error) {
+    console.error(`Error deleting chat ${chatId}:`, error)
+    return { error: 'Failed to delete chat' }
+  }
 }
 
 export async function saveChat(chat: Chat, userId: string = 'anonymous') {

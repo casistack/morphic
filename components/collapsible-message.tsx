@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
-import { ChevronDown, UserCircle2 } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
+import { CurrentUserAvatar } from './current-user-avatar'
 import {
   Collapsible,
   CollapsibleContent,
@@ -29,20 +30,21 @@ export function CollapsibleMessage({
   showBorder = true,
   showIcon = true
 }: CollapsibleMessageProps) {
-  const content = <div className="py-2 flex-1">{children}</div>
+  const content = <div className="flex-1">{children}</div>
 
   return (
-    <div className="flex gap-3">
-      <div className="relative flex flex-col items-center">
-        <div className={cn('mt-[10px] w-5', role === 'assistant' && 'mt-4')}>
-          {showIcon &&
-            (role === 'user' ? (
-              <UserCircle2 size={20} className="text-muted-foreground" />
-            ) : (
+    <div className="flex">
+      {showIcon && (
+        <div className="relative flex flex-col items-center">
+          <div className="w-5">
+            {role === 'assistant' ? (
               <IconLogo className="size-5" />
-            ))}
+            ) : (
+              <CurrentUserAvatar />
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {isCollapsible ? (
         <div
@@ -56,12 +58,18 @@ export function CollapsibleMessage({
             onOpenChange={onOpenChange}
             className="w-full"
           >
-            <CollapsibleTrigger className="flex items-center justify-between w-full group">
-              <div className="flex items-center justify-between w-full gap-2">
-                {header && <div className="text-sm w-full">{header}</div>}
-                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
-              </div>
-            </CollapsibleTrigger>
+            <div className="flex items-center justify-between w-full gap-2">
+              {header && <div className="text-sm w-full">{header}</div>}
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="rounded-md p-1 hover:bg-accent group"
+                  aria-label={isOpen ? 'Collapse' : 'Expand'}
+                >
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </button>
+              </CollapsibleTrigger>
+            </div>
             <CollapsibleContent className="data-[state=closed]:animate-collapse-up data-[state=open]:animate-collapse-down">
               <Separator className="my-4 border-border/50" />
               {content}
@@ -69,7 +77,14 @@ export function CollapsibleMessage({
           </Collapsible>
         </div>
       ) : (
-        <div className="flex-1 rounded-2xl px-4">{content}</div>
+        <div
+          className={cn(
+            'flex-1 rounded-2xl',
+            role === 'assistant' ? 'px-0' : 'px-3'
+          )}
+        >
+          {content}
+        </div>
       )}
     </div>
   )

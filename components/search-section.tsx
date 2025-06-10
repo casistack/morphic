@@ -1,9 +1,10 @@
 'use client'
 
+import { useArtifact } from '@/components/artifact/artifact-context'
 import { CHAT_ID } from '@/lib/constants'
 import type { SearchResults as TypeSearchResults } from '@/lib/types'
+import { useChat } from '@ai-sdk/react'
 import { ToolInvocation } from 'ai'
-import { useChat } from 'ai/react'
 import { CollapsibleMessage } from './collapsible-message'
 import { SearchSkeleton } from './default-skeleton'
 import { SearchResults } from './search-results'
@@ -21,9 +22,11 @@ export function SearchSection({
   isOpen,
   onOpenChange
 }: SearchSectionProps) {
-  const { isLoading } = useChat({
+  const { status } = useChat({
     id: CHAT_ID
   })
+  const isLoading = status === 'submitted' || status === 'streaming'
+
   const isToolLoading = tool.state === 'call'
   const searchResults: TypeSearchResults =
     tool.state === 'result' ? tool.result : undefined
@@ -33,11 +36,19 @@ export function SearchSection({
     ? ` [${includeDomains.join(', ')}]`
     : ''
 
+  const { open } = useArtifact()
   const header = (
-    <ToolArgsSection
-      tool="search"
-      number={searchResults?.results?.length}
-    >{`${query}${includeDomainsString}`}</ToolArgsSection>
+    <button
+      type="button"
+      onClick={() => open({ type: 'tool-invocation', toolInvocation: tool })}
+      className="flex items-center justify-between w-full text-left rounded-md p-1 -ml-1"
+      title="Open details"
+    >
+      <ToolArgsSection
+        tool="search"
+        number={searchResults?.results?.length}
+      >{`${query}${includeDomainsString}`}</ToolArgsSection>
+    </button>
   )
 
   return (
@@ -47,6 +58,7 @@ export function SearchSection({
       header={header}
       isOpen={isOpen}
       onOpenChange={onOpenChange}
+      showIcon={false}
     >
       {searchResults &&
         searchResults.images &&
